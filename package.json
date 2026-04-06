@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev":"node index.js"
+    "dev":"node index.js",
+    "db:sync":"node ./src/scripts/db-sync.js"
   },
   "keywords": [],
   "author": "",
