@@ -23,6 +23,27 @@ User.init({
         type:DataTypes.STRING,
         allowNull: true,
     },
+    dob: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+    },
+    gender: {
+        type: DataTypes.ENUM('male', 'female', 'other'),
+        allowNull: true,
+    },
+    profilePicture: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    status: {
+        type: DataTypes.ENUM('active', 'inactive','broked'),
+        allowNull: false,
+        defaultValue: 'active',
+    },
+    emergencyContact: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
 
     PhoneNumber:{
         type: DataTypes.STRING,

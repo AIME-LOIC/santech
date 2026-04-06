@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev":"node index.js",
-    "db:sync":"node ./src/scripts/db-sync.js"
+    "dev": "node index.js",
+    "db:sync": "node ./src/scripts/db-sync.js"
   },
   "keywords": [],
   "author": "",
@@ -17,5 +17,8 @@
     "express": "^5.2.1",
     "mysql2": "^3.20.0",
     "sequelize": "^6.37.8"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0"
   }
 }
