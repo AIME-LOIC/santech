@@ -34,7 +34,7 @@ Think of this as the backstage system for a clinic. It keeps track of people (pa
 - Mark notifications as read or tweak the message.
 - Clear out old notifications.
 
-## Typical Flow (Happy Path)
+## Typical Flow 
 1. A doctor (or admin) posts open time slots.
 2. A patient picks a slot and books a visit.
 3. Both sides receive a confirmation notification.
