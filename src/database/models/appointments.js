@@ -11,11 +11,21 @@ appointment.init({
         allowNull: false,
     },
     doctorId: {
+        // fk to doctors table
+
         type: DataTypes.UUID,
+        references: {
+            model: 'users',
+            key: 'id',
+        },
         allowNull: false,
     },
     patientId: {
         type: DataTypes.UUID,
+        references: {
+            model: 'users',
+            key: 'id',
+        },
         allowNull: false,
     },
     appointmentDate: {
