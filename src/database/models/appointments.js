@@ -37,9 +37,9 @@ appointment.init({
         allowNull: false,
     },
     status: {
-        type: DataTypes.ENUM('scheduled', 'completed', 'cancelled'),
+        type: DataTypes.ENUM('pending', 'scheduled', 'completed', 'cancelled'),
         allowNull: false,
-        defaultValue: 'scheduled',
+        defaultValue: 'pending',
     },
     createdAt: {
         type: DataTypes.DATE,

@@ -3,6 +3,8 @@ import sequelize from './src/config/db.js';
 import dotenv from 'dotenv/config';
 import UserRouter from './src/routes/user.js';
 import AuthRoutes from './src/routes/auth.js';
+import AppointmentRouter from './src/routes/appointments.js';
+import DoctorAvailabilityRouter from './src/routes/doctorAvailability.js';
 
 // dotenv.config();
 
@@ -10,7 +12,13 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 app.use(express.json())
 app.use('/user',UserRouter)
-app.use("/",AuthRoutes)
+app.use("/", AuthRoutes)
+// Same auth routes under /user so POST /user/api/register works (matches /user/api/users)
+app.use("/user", AuthRoutes)
+app.use("/", AppointmentRouter)
+app.use("/", DoctorAvailabilityRouter)
+app.use("/user", AppointmentRouter)
+app.use("/user", DoctorAvailabilityRouter)
 sequelize.authenticate()
 .then(() => sequelize.sync())
 .then(()=>{
