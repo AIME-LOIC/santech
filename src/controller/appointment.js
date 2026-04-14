@@ -1,6 +1,7 @@
 import Appointment from "../database/models/appointments.js";
 import DoctorAvailability from "../database/models/doctorAvailability.js";
 import User from "../database/models/users.js";
+import Notification from "../database/models/notification.js";
 
 
 
@@ -115,7 +116,6 @@ export const createAppointment = async (req, res) => {
   const { availabilityId, appointmentTime, patientId, status } = req.body;
 
   try {
-    
     if (!availabilityId || appointmentTime == null || appointmentTime === "") {
       return res.status(400).json({
         error: "availabilityId and appointmentTime are required",
@@ -126,7 +126,6 @@ export const createAppointment = async (req, res) => {
       return res.status(400).json({ error: "availabilityId must be a valid UUID" });
     }
 
-    
     const availabilityRow = await DoctorAvailability.findByPk(availabilityId);
     if (!availabilityRow) {
       return res.status(404).json({ error: "Availability slot not found" });
@@ -138,7 +137,6 @@ export const createAppointment = async (req, res) => {
     let finalStatus = status;
 
     if (req.user.role === "patient") {
-      // Patients always book for themselves
       finalPatientId = req.user.id;
       if (patientId && patientId !== req.user.id) {
         return res.status(403).json({
@@ -146,19 +144,16 @@ export const createAppointment = async (req, res) => {
         });
       }
 
-      // Patients can't pre-set status — always starts as pending
       if (status && status !== "pending") {
         return res.status(403).json({ message: "Patients cannot set appointment status" });
       }
       finalStatus = "pending";
 
-      // Confirm the doctor is still active
       const doctor = await User.findByPk(doctorId);
       if (!doctor || doctor.role !== "doctor") {
         return res.status(400).json({ error: "Invalid or inactive doctor" });
       }
 
-      // Validate the requested time against the availability row's slots
       const matchedSlot = findMatchingSlot(appointmentTime, [availabilityRow]);
       if (!matchedSlot) {
         return res.status(400).json({
@@ -175,6 +170,13 @@ export const createAppointment = async (req, res) => {
         status: finalStatus,
       });
 
+      // Notify the doctor that a patient just booked a slot
+      await Notification.create({
+        userId: doctorId,
+        message: `New appointment request on ${availableDate} at ${matchedSlot} is waiting for your approval.`,
+        isRead: false,
+      });
+
       return res.status(201).json(appointment);
 
     } else if (req.user.role === "admin") {
@@ -184,7 +186,6 @@ export const createAppointment = async (req, res) => {
 
       finalStatus = finalStatus || "pending";
 
-      // Admins also get slot validation to keep data consistent
       const matchedSlot = findMatchingSlot(appointmentTime, [availabilityRow]);
       if (!matchedSlot) {
         return res.status(400).json({
@@ -199,6 +200,13 @@ export const createAppointment = async (req, res) => {
         appointmentDate: availableDate,
         appointmentTime: matchedSlot,
         status: finalStatus,
+      });
+
+      // Notify the doctor that an admin booked on a patient's behalf
+      await Notification.create({
+        userId: doctorId,
+        message: `An admin scheduled an appointment for ${availableDate} at ${matchedSlot}. Status: ${finalStatus}.`,
+        isRead: false,
       });
 
       return res.status(201).json(appointment);
