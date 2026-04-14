@@ -2,16 +2,22 @@ import Appointment from "../database/models/appointments.js";
 import DoctorAvailability from "../database/models/doctorAvailability.js";
 import User from "../database/models/users.js";
 
-/** Compare slots loosely: trims and treats "14:00 - 15:00" same as "14:00-15:00". */
-const normalizeSlotKey = (value) => {
+
+
+
+  // Normalizes a time slot string so "14:00 - 15:00" and "14:00-15:00"
+ 
+ 
+const normalizeSlot = (value) => {
   if (value == null) return "";
-  return String(value)
-    .trim()
-    .replace(/\s*-\s*/g, "-")
-    .replace(/\s+/g, " ");
+  return String(value).trim().replace(/\s*-\s*/g, "-").replace(/\s+/g, " ");
 };
 
-const parseSlotArray = (raw) => {
+
+  // Safely parses availableTimeSlots, which may be stored as a JSON string
+  // or already be a plain array.
+
+const parseSlots = (raw) => {
   if (raw == null) return [];
   if (Array.isArray(raw)) return raw;
   if (typeof raw === "string") {
@@ -25,248 +31,259 @@ const parseSlotArray = (raw) => {
   return [];
 };
 
-const isUuidLike = (value) =>
+// Returns true if a string looks like a UUID. 
+const looksLikeUUID = (value) =>
   typeof value === "string" &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value.trim()
   );
 
-/** Returns the doctor's canonical slot string if request matches, else null. */
-const resolvePatientSlot = (requestedTime, availabilityRows) => {
-  const wanted = normalizeSlotKey(requestedTime);
+
+//   Finds the doctor's canonical slot string that matches the requested time.
+//  Returns null if no match is found.
+ 
+const findMatchingSlot = (requestedTime, availabilityRows) => {
+  const wanted = normalizeSlot(requestedTime);
   if (!wanted) return null;
+
   for (const row of availabilityRows) {
-    for (const slot of parseSlotArray(row.availableTimeSlots)) {
-      if (normalizeSlotKey(slot) === wanted) {
-        return String(slot).trim();
-      }
+    for (const slot of parseSlots(row.availableTimeSlots)) {
+      if (normalizeSlot(slot) === wanted) return String(slot).trim();
     }
   }
   return null;
 };
 
+//  Can this user see the appointment details? 
 const canViewAppointment = (user, appointment) => {
   if (user.role === "admin") return true;
-  if (user.role === "doctor" && appointment.doctorId === user.id) return true;
-  if (user.role === "patient" && appointment.patientId === user.id) return true;
+  if (user.role === "doctor") return appointment.doctorId === user.id;
+  if (user.role === "patient") return appointment.patientId === user.id;
   return false;
 };
 
-const isDoctorForAppointment = (user, appointment) =>
+//  Can this user approve or cancel the appointment? 
+const canManageAppointment = (user, appointment) =>
   user.role === "admin" ||
   (user.role === "doctor" && appointment.doctorId === user.id);
+
+
 
 export const listAppointments = async (req, res) => {
   try {
     const { role, id: userId } = req.user;
-    let where = {};
 
-    if (role === "doctor") {
-      where.doctorId = userId;
-    } else if (role === "patient") {
-      where.patientId = userId;
-    } else if (role !== "admin") {
-      return res.status(403).json({ message: "Forbidden" });
-    }
+    const filter = {};
+    if (role === "doctor") filter.doctorId = userId;
+    else if (role === "patient") filter.patientId = userId;
+    else if (role !== "admin") return res.status(403).json({ message: "Forbidden" });
 
     const appointments = await Appointment.findAll({
-      where,
-      order: [["appointmentDate", "ASC"], ["appointmentTime", "ASC"]],
+      where: filter,
+      order: [
+        ["appointmentDate", "ASC"],
+        ["appointmentTime", "ASC"],
+      ],
     });
+
     return res.status(200).json(appointments);
-  } catch (error) {
-    console.error("Error fetching appointments:", error);
+  } catch (err) {
+    console.error("listAppointments failed:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
 
 export const getAppointmentById = async (req, res) => {
-  const { id } = req.params;
   try {
-    const appointment = await Appointment.findByPk(id);
+    const appointment = await Appointment.findByPk(req.params.id);
+
     if (!appointment) {
       return res.status(404).json({ error: "Appointment not found" });
     }
     if (!canViewAppointment(req.user, appointment)) {
       return res.status(403).json({ message: "Access denied" });
     }
+
     return res.status(200).json(appointment);
-  } catch (error) {
-    console.error("Error fetching appointment:", error);
+  } catch (err) {
+    console.error("getAppointmentById failed:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
 
 export const createAppointment = async (req, res) => {
-  const { doctorId, patientId, appointmentDate, appointmentTime, status } =
-    req.body;
+  const { availabilityId, appointmentTime, patientId, status } = req.body;
 
   try {
-    if (!doctorId || !appointmentDate || appointmentTime == null || appointmentTime === "") {
+    
+    if (!availabilityId || appointmentTime == null || appointmentTime === "") {
       return res.status(400).json({
-        error: "doctorId, appointmentDate, and appointmentTime are required",
+        error: "availabilityId and appointmentTime are required",
       });
     }
 
-    let resolvedPatientId = patientId;
-    let resolvedStatus = status;
-    let resolvedTime = appointmentTime;
-    let resolvedAppointmentDate = appointmentDate;
+    if (!looksLikeUUID(availabilityId)) {
+      return res.status(400).json({ error: "availabilityId must be a valid UUID" });
+    }
+
+    
+    const availabilityRow = await DoctorAvailability.findByPk(availabilityId);
+    if (!availabilityRow) {
+      return res.status(404).json({ error: "Availability slot not found" });
+    }
+
+    const { doctorId, availableDate } = availabilityRow;
+
+    let finalPatientId = patientId;
+    let finalStatus = status;
 
     if (req.user.role === "patient") {
-      resolvedPatientId = req.user.id;
+      // Patients always book for themselves
+      finalPatientId = req.user.id;
       if (patientId && patientId !== req.user.id) {
         return res.status(403).json({
           message: "Patients can only book appointments for themselves",
         });
       }
-      if (resolvedStatus && resolvedStatus !== "pending") {
-        return res.status(403).json({
-          message: "Patients cannot set appointment status",
-        });
-      }
-      resolvedStatus = "pending";
 
+      // Patients can't pre-set status — always starts as pending
+      if (status && status !== "pending") {
+        return res.status(403).json({ message: "Patients cannot set appointment status" });
+      }
+      finalStatus = "pending";
+
+      // Confirm the doctor is still active
       const doctor = await User.findByPk(doctorId);
       if (!doctor || doctor.role !== "doctor") {
         return res.status(400).json({ error: "Invalid or inactive doctor" });
       }
 
-      let resolvedDate = appointmentDate;
-      let availabilityRows = [];
-
-      // Allow passing a DoctorAvailability row id in appointmentDate.
-      if (isUuidLike(appointmentDate)) {
-        const availabilityById = await DoctorAvailability.findByPk(
-          appointmentDate
-        );
-        if (!availabilityById || availabilityById.doctorId !== doctorId) {
-          return res.status(400).json({
-            error:
-              "appointmentDate as docava id must reference an availability row for this doctor",
-          });
-        }
-        resolvedDate = availabilityById.availableDate;
-        availabilityRows = [availabilityById];
-      } else {
-        availabilityRows = await DoctorAvailability.findAll({
-          where: { doctorId, availableDate: appointmentDate },
-        });
-      }
-
-      if (!availabilityRows.length) {
-        return res.status(400).json({
-          error: "Doctor has no published availability on this date",
-        });
-      }
-      const matchedSlot = resolvePatientSlot(appointmentTime, availabilityRows);
+      // Validate the requested time against the availability row's slots
+      const matchedSlot = findMatchingSlot(appointmentTime, [availabilityRow]);
       if (!matchedSlot) {
-        const allowedSlots = availabilityRows.flatMap((row) =>
-          parseSlotArray(row.availableTimeSlots)
-        );
         return res.status(400).json({
-          error:
-            "appointmentTime must match one of the doctor's slots for this date (spacing around '-' is ignored)",
-          allowedSlots,
+          error: "The requested time doesn't match any available slot for this availability",
+          availableSlots: parseSlots(availabilityRow.availableTimeSlots),
         });
       }
-      resolvedTime = matchedSlot;
-      resolvedAppointmentDate = resolvedDate;
+
+      const appointment = await Appointment.create({
+        doctorId,
+        patientId: finalPatientId,
+        appointmentDate: availableDate,
+        appointmentTime: matchedSlot,
+        status: finalStatus,
+      });
+
+      return res.status(201).json(appointment);
+
     } else if (req.user.role === "admin") {
-      if (!resolvedPatientId) {
+      if (!finalPatientId) {
         return res.status(400).json({ error: "patientId is required" });
       }
-      resolvedStatus = resolvedStatus || "pending";
+
+      finalStatus = finalStatus || "pending";
+
+      // Admins also get slot validation to keep data consistent
+      const matchedSlot = findMatchingSlot(appointmentTime, [availabilityRow]);
+      if (!matchedSlot) {
+        return res.status(400).json({
+          error: "The requested time doesn't match any available slot for this availability",
+          availableSlots: parseSlots(availabilityRow.availableTimeSlots),
+        });
+      }
+
+      const appointment = await Appointment.create({
+        doctorId,
+        patientId: finalPatientId,
+        appointmentDate: availableDate,
+        appointmentTime: matchedSlot,
+        status: finalStatus,
+      });
+
+      return res.status(201).json(appointment);
+
+    } else {
+      return res.status(403).json({ message: "Forbidden" });
     }
 
-    const appointment = await Appointment.create({
-      doctorId,
-      patientId: resolvedPatientId,
-      appointmentDate: resolvedAppointmentDate,
-      appointmentTime: resolvedTime,
-      status: resolvedStatus,
-    });
-    return res.status(201).json(appointment);
-  } catch (error) {
-    console.error("Error creating appointment:", error);
+  } catch (err) {
+    console.error("createAppointment failed:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
 
 export const updateAppointment = async (req, res) => {
-  const { id } = req.params;
-  const updates = { ...req.body };
-  delete updates.id;
   try {
-    const appointment = await Appointment.findByPk(id);
+    const appointment = await Appointment.findByPk(req.params.id);
     if (!appointment) {
       return res.status(404).json({ error: "Appointment not found" });
     }
-    await appointment.update(updates);
+
+    // Strip the primary key so the caller can't accidentally overwrite it
+    const { id: _ignored, ...safeUpdates } = req.body;
+    await appointment.update(safeUpdates);
+
     return res.status(200).json(appointment);
-  } catch (error) {
-    console.error("Error updating appointment:", error);
+  } catch (err) {
+    console.error("updateAppointment failed:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
 
 export const approveAppointment = async (req, res) => {
-  const { id } = req.params;
   try {
-    const appointment = await Appointment.findByPk(id);
+    const appointment = await Appointment.findByPk(req.params.id);
     if (!appointment) {
       return res.status(404).json({ error: "Appointment not found" });
     }
-    if (!isDoctorForAppointment(req.user, appointment)) {
+    if (!canManageAppointment(req.user, appointment)) {
       return res.status(403).json({ message: "Access denied" });
     }
     if (appointment.status !== "pending") {
-      return res.status(400).json({
-        error: "Only pending appointments can be approved",
-      });
+      return res.status(400).json({ error: "Only pending appointments can be approved" });
     }
+
     await appointment.update({ status: "scheduled" });
     return res.status(200).json(appointment);
-  } catch (error) {
-    console.error("Error approving appointment:", error);
+  } catch (err) {
+    console.error("approveAppointment failed:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
 
 export const cancelAppointment = async (req, res) => {
-  const { id } = req.params;
   try {
-    const appointment = await Appointment.findByPk(id);
+    const appointment = await Appointment.findByPk(req.params.id);
     if (!appointment) {
       return res.status(404).json({ error: "Appointment not found" });
     }
-    if (!isDoctorForAppointment(req.user, appointment)) {
+    if (!canManageAppointment(req.user, appointment)) {
       return res.status(403).json({ message: "Access denied" });
     }
     if (["completed", "cancelled"].includes(appointment.status)) {
-      return res.status(400).json({
-        error: "This appointment cannot be cancelled",
-      });
+      return res.status(400).json({ error: "This appointment cannot be cancelled" });
     }
+
     await appointment.update({ status: "cancelled" });
     return res.status(200).json(appointment);
-  } catch (error) {
-    console.error("Error cancelling appointment:", error);
+  } catch (err) {
+    console.error("cancelAppointment failed:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
 
 export const deleteAppointment = async (req, res) => {
-  const { id } = req.params;
   try {
-    const appointment = await Appointment.findByPk(id);
+    const appointment = await Appointment.findByPk(req.params.id);
     if (!appointment) {
       return res.status(404).json({ error: "Appointment not found" });
     }
+
     await appointment.destroy();
     return res.status(200).json({ message: "Appointment deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting appointment:", error);
+  } catch (err) {
+    console.error("deleteAppointment failed:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
