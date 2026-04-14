@@ -25,6 +25,12 @@ const parseSlotArray = (raw) => {
   return [];
 };
 
+const isUuidLike = (value) =>
+  typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value.trim()
+  );
+
 /** Returns the doctor's canonical slot string if request matches, else null. */
 const resolvePatientSlot = (requestedTime, availabilityRows) => {
   const wanted = normalizeSlotKey(requestedTime);
@@ -105,6 +111,7 @@ export const createAppointment = async (req, res) => {
     let resolvedPatientId = patientId;
     let resolvedStatus = status;
     let resolvedTime = appointmentTime;
+    let resolvedAppointmentDate = appointmentDate;
 
     if (req.user.role === "patient") {
       resolvedPatientId = req.user.id;
@@ -125,9 +132,28 @@ export const createAppointment = async (req, res) => {
         return res.status(400).json({ error: "Invalid or inactive doctor" });
       }
 
-      const availabilityRows = await DoctorAvailability.findAll({
-        where: { doctorId, availableDate: appointmentDate },
-      });
+      let resolvedDate = appointmentDate;
+      let availabilityRows = [];
+
+      // Allow passing a DoctorAvailability row id in appointmentDate.
+      if (isUuidLike(appointmentDate)) {
+        const availabilityById = await DoctorAvailability.findByPk(
+          appointmentDate
+        );
+        if (!availabilityById || availabilityById.doctorId !== doctorId) {
+          return res.status(400).json({
+            error:
+              "appointmentDate as docava id must reference an availability row for this doctor",
+          });
+        }
+        resolvedDate = availabilityById.availableDate;
+        availabilityRows = [availabilityById];
+      } else {
+        availabilityRows = await DoctorAvailability.findAll({
+          where: { doctorId, availableDate: appointmentDate },
+        });
+      }
+
       if (!availabilityRows.length) {
         return res.status(400).json({
           error: "Doctor has no published availability on this date",
@@ -145,6 +171,7 @@ export const createAppointment = async (req, res) => {
         });
       }
       resolvedTime = matchedSlot;
+      resolvedAppointmentDate = resolvedDate;
     } else if (req.user.role === "admin") {
       if (!resolvedPatientId) {
         return res.status(400).json({ error: "patientId is required" });
@@ -155,7 +182,7 @@ export const createAppointment = async (req, res) => {
     const appointment = await Appointment.create({
       doctorId,
       patientId: resolvedPatientId,
-      appointmentDate,
+      appointmentDate: resolvedAppointmentDate,
       appointmentTime: resolvedTime,
       status: resolvedStatus,
     });
