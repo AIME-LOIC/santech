@@ -113,12 +113,18 @@ export const getAppointmentById = async (req, res) => {
 };
 
 export const createAppointment = async (req, res) => {
-  const { availabilityId, appointmentTime, patientId, status } = req.body;
+  const { availabilityId, appointmentTime, patientId, status, reason } = req.body;
 
   try {
-    if (!availabilityId || appointmentTime == null || appointmentTime === "") {
+    if (
+      !availabilityId ||
+      appointmentTime == null ||
+      appointmentTime === "" ||
+      reason == null ||
+      String(reason).trim() === ""
+    ) {
       return res.status(400).json({
-        error: "availabilityId and appointmentTime are required",
+        error: "availabilityId, appointmentTime and reason are required",
       });
     }
 
@@ -167,6 +173,7 @@ export const createAppointment = async (req, res) => {
         patientId: finalPatientId,
         appointmentDate: availableDate,
         appointmentTime: matchedSlot,
+        reason: String(reason).trim(),
         status: finalStatus,
       });
 
@@ -199,6 +206,7 @@ export const createAppointment = async (req, res) => {
         patientId: finalPatientId,
         appointmentDate: availableDate,
         appointmentTime: matchedSlot,
+        reason: String(reason).trim(),
         status: finalStatus,
       });
 
@@ -253,6 +261,16 @@ export const approveAppointment = async (req, res) => {
     }
 
     await appointment.update({ status: "scheduled" });
+
+    // Notify the patient that their appointment has been confirmed
+    const doctor = await User.findByPk(appointment.doctorId);
+    const doctorName = doctor?.fullname ? ` with Dr. ${doctor.fullname}` : "";
+    await Notification.create({
+      userId: appointment.patientId,
+      message: `Your appointment${doctorName} on ${appointment.appointmentDate} at ${appointment.appointmentTime} has been confirmed.`,
+      isRead: false,
+    });
+
     return res.status(200).json(appointment);
   } catch (err) {
     console.error("approveAppointment failed:", err);

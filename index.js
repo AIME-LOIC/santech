@@ -5,6 +5,7 @@ import UserRouter from './src/routes/user.js';
 import AuthRoutes from './src/routes/auth.js';
 import AppointmentRouter from './src/routes/appointments.js';
 import DoctorAvailabilityRouter from './src/routes/doctorAvailability.js';
+import NotificationRouter from './src/routes/notifications.js';
 
 // dotenv.config();
 
@@ -17,8 +18,10 @@ app.use("/", AuthRoutes)
 app.use("/user", AuthRoutes)
 app.use("/", AppointmentRouter)
 app.use("/", DoctorAvailabilityRouter)
+app.use("/", NotificationRouter)
 app.use("/user", AppointmentRouter)
 app.use("/user", DoctorAvailabilityRouter)
+app.use("/user", NotificationRouter)
 sequelize.authenticate()
 .then(() => sequelize.sync())
 .then(()=>{
@@ -35,5 +38,4 @@ sequelize.authenticate()
         console.error("Error connecting to the database:", error);
         process.exit(1);
     })
-
 

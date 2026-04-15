@@ -36,6 +36,10 @@ appointment.init({
         type: DataTypes.STRING,
         allowNull: false,
     },
+    reason: {
+        type: DataTypes.TEXT,
+        allowNull: false,
+    },
     status: {
         type: DataTypes.ENUM('pending', 'scheduled', 'completed', 'cancelled'),
         allowNull: false,
