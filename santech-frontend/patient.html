@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Dashboard - HealthCare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #f9fafb; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .loader {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold text-blue-600">HealthCare</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="user-display" class="text-sm text-gray-600 mr-4 font-medium">Patient Portal</span>
+                    <button id="logout-btn" class="text-sm font-medium text-gray-500 hover:text-red-600 transition-colors">Logout / Exit</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="md:flex md:items-center md:justify-between mb-8">
+            <div class="flex-1 min-w-0">
+                <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">Patient Dashboard</h2>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="border-b border-gray-200 mb-8">
+            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <button data-tab="appointments" class="tab-link border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">My Appointments</button>
+                <button data-tab="book" class="tab-link border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Book Appointment</button>
+                <button data-tab="notifications" class="tab-link border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Notifications</button>
+            </nav>
+        </div>
+
+        <!-- My Appointments Tab -->
+        <div id="appointments" class="tab-content active">
+            <div class="flex flex-col">
+                <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                    <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
+                        <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg bg-white">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="appointment-list" class="bg-white divide-y divide-gray-200">
+                                </tbody>
+                            </table>
+                            <div id="empty-state" class="hidden py-12 text-center text-gray-500">
+                                No appointments found.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Book Appointment Tab -->
+        <div id="book" class="tab-content">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Left Side: Selection Area -->
+                <div class="lg:col-span-2 space-y-6">
+                    
+                    <!-- Step 1: Doctor List -->
+                    <div id="doctor-list-section" class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-gray-800">1. Select a Doctor</h3>
+                            <button onclick="loadDoctors()" class="text-blue-600 text-sm hover:underline">Refresh List</button>
+                        </div>
+                        <div id="doctors-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Doctors injected here -->
+                            <div class="animate-pulse flex space-x-4 p-4 bg-white rounded-lg border border-gray-100">
+                                <div class="rounded-full bg-slate-200 h-10 w-10"></div>
+                                <div class="flex-1 space-y-6 py-1">
+                                    <div class="h-2 bg-slate-200 rounded"></div>
+                                    <div class="h-2 bg-slate-200 rounded"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Time Slots -->
+                    <div id="slots-section" class="hidden space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold text-gray-800">2. Choose a Time Slot</h3>
+                            <button onclick="backToDoctors()" class="text-blue-600 text-sm hover:underline">&larr; Back to Doctors</button>
+                        </div>
+                        <div id="selected-doctor-info" class="bg-blue-50 p-3 rounded-md text-sm text-blue-800 border border-blue-100 mb-2">
+                            Showing availability for <span id="current-doctor-name" class="font-bold"></span>
+                        </div>
+                        <div id="slots-container" class="space-y-4">
+                            <!-- Slots injected here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side: Booking Details -->
+                <div id="booking-form-container" class="hidden lg:block">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-blue-200 sticky top-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Complete Booking</h3>
+                        <form id="book-form" class="space-y-4">
+                            <input type="hidden" id="availabilityId">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Selected Time</label>
+                                <input type="text" id="appointmentTime" readonly
+                                    class="mt-1 block w-full bg-gray-50 border border-gray-300 rounded-md py-2 px-3 text-gray-600 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Reason for Visit</label>
+                                <textarea id="reason" required rows="3" placeholder="Briefly describe why you need to see the doctor..."
+                                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                            </div>
+                            <button type="submit" id="book-submit" 
+                                class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none">
+                                Confirm Appointment
+                            </button>
+                        </form>
+                        <div id="book-status" class="mt-4 hidden p-3 rounded-md text-sm"></div>
+                        <button onclick="cancelBooking()" class="mt-2 w-full text-xs text-gray-400 hover:text-gray-600">Cancel Selection</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notifications Tab -->
+        <div id="notifications" class="tab-content">
+            <div class="max-w-3xl mx-auto bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">
+                <ul id="notification-list" class="divide-y divide-gray-200">
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = "http://localhost:50001/api";
+        const getToken = () => localStorage.getItem('token') || null;
+
+        /**
+         * Safe JSON helper to prevent "Unexpected token <" errors
+         */
+        async function safeJson(response) {
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                const text = await response.text();
+                console.error("Non-JSON response received:", text);
+                throw new Error(`Server returned non-JSON response. Check if API URL is correct.`);
+            }
+            return await response.json();
+        }
+
+        // Navigation handling
+        document.querySelectorAll('.tab-link').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-link').forEach(b => b.classList.remove('border-blue-500', 'text-blue-600'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('border-blue-500', 'text-blue-600');
+                const target = document.getElementById(btn.dataset.tab);
+                if (target) target.classList.add('active');
+                
+                if (btn.dataset.tab === 'appointments') loadAppointments();
+                if (btn.dataset.tab === 'book') loadDoctors();
+                if (btn.dataset.tab === 'notifications') loadNotifications();
+            });
+        });
+
+        // STEP 1: Load all doctors
+        async function loadDoctors() {
+            const grid = document.getElementById('doctors-grid');
+            const token = getToken();
+            
+            try {
+                const res = await fetch(`${API_BASE}/users?role=doctor`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!res.ok) throw new Error('Failed to load doctors');
+                
+                const doctors = await safeJson(res);
+                
+                if (doctors.length === 0) {
+                    grid.innerHTML = '<div class="col-span-2 py-8 text-center text-gray-500">No doctors available.</div>';
+                    return;
+                }
+
+                grid.innerHTML = doctors.map(doc => `
+                    <div onclick="selectDoctor('${doc.id}', '${doc.username}')" 
+                        class="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-500 hover:shadow-md cursor-pointer transition-all flex items-center space-x-4">
+                        <div class="bg-blue-100 text-blue-600 h-12 w-12 rounded-full flex items-center justify-center font-bold text-lg">
+                            ${doc.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-900">${doc.username}</h4>
+                            <p class="text-xs text-gray-500">ID: ${doc.id}</p>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                grid.innerHTML = `<div class="col-span-2 text-red-500 text-sm p-4">${err.message}</div>`;
+            }
+        }
+
+        // STEP 2: Transition to slots for a specific doctor
+        async function selectDoctor(doctorId, name) {
+            document.getElementById('doctor-list-section').classList.add('hidden');
+            document.getElementById('slots-section').classList.remove('hidden');
+            document.getElementById('current-doctor-name').innerText = name;
+            loadAvailableSlots(doctorId);
+        }
+
+        function backToDoctors() {
+            document.getElementById('slots-section').classList.add('hidden');
+            document.getElementById('doctor-list-section').classList.remove('hidden');
+            cancelBooking();
+        }
+
+        async function loadAvailableSlots(doctorId) {
+            const container = document.getElementById('slots-container');
+            const token = getToken();
+
+            container.innerHTML = '<div class="text-center py-8"><span class="loader"></span> Loading available times...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/doctor-availability?doctorId=${doctorId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!res.ok) throw new Error('Could not fetch slots for this doctor');
+                
+                const data = await safeJson(res);
+                
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="bg-white p-8 text-center rounded-lg border border-dashed border-gray-300 text-gray-500">No available slots found for this doctor.</div>';
+                    return;
+                }
+
+                container.innerHTML = data.map(item => {
+                    const slots = Array.isArray(item.availableTimeSlots) ? item.availableTimeSlots : JSON.parse(item.availableTimeSlots || '[]');
+                    const dateStr = new Date(item.availableDate).toLocaleDateString('en-US', { 
+                        weekday: 'short', month: 'long', day: 'numeric' 
+                    });
+
+                    return `
+                        <div class="bg-white p-5 rounded-lg border border-gray-100">
+                            <h4 class="font-bold text-gray-800 mb-3">${dateStr}</h4>
+                            <div class="flex flex-wrap gap-2">
+                                ${slots.map(slot => `
+                                    <button onclick="selectSlot('${item.id}', '${slot}')" 
+                                        class="px-4 py-2 border border-gray-200 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition-colors">
+                                        ${slot}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                container.innerHTML = `<div class="bg-red-50 p-4 text-center rounded-lg text-red-600 border border-red-200">${err.message}</div>`;
+            }
+        }
+
+        function selectSlot(id, time) {
+            document.getElementById('availabilityId').value = id;
+            document.getElementById('appointmentTime').value = time;
+            document.getElementById('booking-form-container').classList.remove('hidden');
+            if (window.innerWidth < 1024) {
+                document.getElementById('booking-form-container').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function cancelBooking() {
+            document.getElementById('booking-form-container').classList.add('hidden');
+            document.getElementById('book-form').reset();
+        }
+
+        async function loadAppointments() {
+            const list = document.getElementById('appointment-list');
+            const empty = document.getElementById('empty-state');
+            const token = getToken();
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_BASE}/appointments`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await safeJson(res);
+                if (!data || data.length === 0) {
+                    list.innerHTML = '';
+                    empty.classList.remove('hidden');
+                    return;
+                }
+                empty.classList.add('hidden');
+                list.innerHTML = data.map(app => `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <div class="font-medium">${new Date(app.appointmentDate).toLocaleDateString()}</div>
+                            <div class="text-gray-500 text-xs">${app.appointmentTime}</div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500">${app.reason}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                ${app.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                                  app.status === 'scheduled' ? 'bg-green-100 text-green-800' : 
+                                  'bg-red-100 text-red-800'}">
+                                ${app.status}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                list.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-red-500">Error loading data.</td></tr>';
+            }
+        }
+
+        document.getElementById('book-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const statusDiv = document.getElementById('book-status');
+            const submitBtn = document.getElementById('book-submit');
+            const token = getToken();
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<span class="loader"></span> Confirming...`;
+            
+            const payload = {
+                availabilityId: document.getElementById('availabilityId').value,
+                appointmentTime: document.getElementById('appointmentTime').value,
+                reason: document.getElementById('reason').value
+            };
+            
+            try {
+                const res = await fetch(`${API_BASE}/appointments`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await safeJson(res);
+                statusDiv.classList.remove('hidden');
+                if (res.ok) {
+                    statusDiv.innerText = "Appointment booked successfully!";
+                    statusDiv.className = "mt-4 p-3 rounded-md text-sm bg-green-100 text-green-700 font-medium";
+                    setTimeout(() => { 
+                        backToDoctors();
+                        switchTab('appointments'); 
+                    }, 2000);
+                } else {
+                    statusDiv.innerText = result.error || "Booking failed.";
+                    statusDiv.className = "mt-4 p-3 rounded-md text-sm bg-red-100 text-red-700";
+                }
+            } catch (err) {
+                statusDiv.innerText = err.message || "Connection error.";
+                statusDiv.className = "mt-4 p-3 rounded-md text-sm bg-red-100 text-red-700";
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Confirm Appointment";
+            }
+        });
+
+        async function loadNotifications() {
+            const list = document.getElementById('notification-list');
+            const token = getToken();
+            try {
+                const res = await fetch(`${API_BASE}/notifications`, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (res.ok) {
+                    const data = await safeJson(res);
+                    list.innerHTML = data.length ? data.map(n => `
+                        <li class="px-6 py-4 ${n.isRead ? 'bg-white' : 'bg-blue-50'}">
+                            <div class="text-sm font-medium text-gray-900">${n.message}</div>
+                            <div class="text-xs text-gray-500 mt-1">${new Date(n.createdAt).toLocaleString()}</div>
+                        </li>
+                    `).join('') : '<li class="px-6 py-4 text-center text-gray-500">No notifications.</li>';
+                }
+            } catch (e) {}
+        }
+
+        function switchTab(tabId) {
+            const btn = document.querySelector(`[data-tab="${tabId}"]`);
+            if (btn) btn.click();
+        }
+
+        window.onload = loadAppointments;
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>

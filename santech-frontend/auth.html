@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Santech Frontend - Authentication</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="auth">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand__icon">S</div>
+          <div>
+            <h1>Santech</h1>
+            <p>Clinic management frontend</p>
+          </div>
+        </div>
+
+        <nav class="sidebar__nav">
+          <a class="nav-link" href="index.html">Overview</a>
+          <a class="nav-link nav-link--active" href="auth.html">Authentication</a>
+          <a class="nav-link" href="users.html">Users</a>
+          <a class="nav-link" href="appointments.html">Appointments</a>
+          <a class="nav-link" href="availability.html">Doctor Availability</a>
+          <a class="nav-link" href="notifications.html">Notifications</a>
+        </nav>
+
+        <div class="sidebar__footer">
+          <label class="field">
+            <span>API Base URL</span>
+            <input id="apiBaseUrl" type="text" value="http://localhost:5000" />
+          </label>
+          <button id="saveConfigBtn" class="button button--secondary">Save API URL</button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="hero">
+          <div>
+            <p class="eyebrow">Authentication</p>
+            <h2>Register and login</h2>
+            <p class="hero__text">Use these forms to create users and store an auth token for protected requests.</p>
+          </div>
+          <div class="hero__status">
+            <div class="status-card">
+              <span class="status-card__label">Auth token</span>
+              <strong id="tokenStatus">Not connected</strong>
+            </div>
+            <div class="status-card">
+              <span class="status-card__label">Current role</span>
+              <strong id="roleStatus">Guest</strong>
+            </div>
+          </div>
+        </header>
+
+        <section id="messageBox" class="message hidden"></section>
+
+        <section class="panel">
+          <div class="grid-two">
+            <form id="registerForm" class="card form-card">
+              <h4>Create account</h4>
+              <div class="form-grid">
+                <label class="field">
+                  <span>Full name</span>
+                  <input name="fullname" type="text" placeholder="Jane Doe" required />
+                </label>
+                <label class="field">
+                  <span>Email</span>
+                  <input name="email" type="email" placeholder="jane@example.com" required />
+                </label>
+                <label class="field">
+                  <span>Password</span>
+                  <input name="password" type="password" required />
+                </label>
+                <label class="field">
+                  <span>Role</span>
+                  <select name="role" required>
+                    <option value="patient">Patient</option>
+                    <option value="doctor">Doctor</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+                <label class="field field--full">
+                  <span>Phone</span>
+                  <input name="phone" type="text" placeholder="+250..." />
+                </label>
+              </div>
+              <button type="submit" class="button">Register</button>
+            </form>
+
+            <form id="loginForm" class="card form-card">
+              <h4>Login</h4>
+              <div class="form-grid">
+                <label class="field field--full">
+                  <span>Email</span>
+                  <input name="email" type="email" required />
+                </label>
+                <label class="field field--full">
+                  <span>Password</span>
+                  <input name="password" type="password" required />
+                </label>
+              </div>
+              <div class="button-row">
+                <button type="submit" class="button">Login</button>
+                <button type="button" id="logoutBtn" class="button button--secondary">Logout</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card results-card">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Authentication</p>
+                <h4>API response</h4>
+              </div>
+            </div>
+            <pre id="authOutput" class="output"></pre>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

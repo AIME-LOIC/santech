@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication System - HealthCare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f3f4f6;
+        }
+
+        .auth-card {
+            transition: all 0.3s ease;
+            max-height: 95vh;
+            overflow-y: auto;
+        }
+
+        .loader {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Scrollbar styling for the card */
+        .auth-card::-webkit-scrollbar {
+            width: 4px;
+        }
+        .auth-card::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden auth-card">
+        <div class="p-8">
+            <div class="text-center mb-6">
+                <h1 id="form-title" class="text-3xl font-bold text-gray-800">Welcome Back</h1>
+                <p id="form-subtitle" class="text-gray-500 mt-2">Please enter your details to sign in</p>
+            </div>
+
+            <!-- Message Alert Box -->
+            <div id="status-msg" class="hidden mb-6 p-4 rounded-lg text-sm font-medium"></div>
+
+            <form id="auth-form" class="space-y-4">
+                <!-- Registration Specific Fields -->
+                <div id="register-only-fields" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Full Name</label>
+                        <input type="text" id="fullname" placeholder="Aime" 
+                            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">Phone Number</label>
+                            <input type="tel" id="PhoneNumber" placeholder="+250..." 
+                                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">Emergency Contact</label>
+                            <input type="tel" id="emergencyContact" placeholder="+250..." 
+                                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">DOB</label>
+                            <input type="date" id="dob" 
+                                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">Gender</label>
+                            <select id="gender" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Location</label>
+                        <input type="text" id="location" placeholder="Kigali" 
+                            class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                    </div>
+                </div>
+
+                <!-- Shared Fields -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
+                    <input type="email" id="email" required placeholder="name@company.com" 
+                        class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+                    <input type="password" id="password" required placeholder="••••••••" 
+                        class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all">
+                </div>
+
+                <button type="submit" id="submit-btn" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg shadow-blue-200 mt-2">
+                    Sign In
+                </button>
+            </form>
+
+            <div class="mt-6 text-center">
+                <p class="text-gray-600">
+                    <span id="toggle-text">Don't have an account?</span>
+                    <button id="toggle-btn" class="text-blue-600 font-semibold hover:underline focus:outline-none ml-1">
+                        Sign up
+                    </button>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:50001/api";
+        const form = document.getElementById('auth-form');
+        const toggleBtn = document.getElementById('toggle-btn');
+        const formTitle = document.getElementById('form-title');
+        const formSubtitle = document.getElementById('form-subtitle');
+        const registerFields = document.getElementById('register-only-fields');
+        const submitBtn = document.getElementById('submit-btn');
+        const toggleText = document.getElementById('toggle-text');
+        const statusMsg = document.getElementById('status-msg');
+
+        let isLogin = true;
+
+        // Toggle between Login and Signup
+        toggleBtn.addEventListener('click', () => {
+            isLogin = !isLogin;
+            
+            if (isLogin) {
+                formTitle.innerText = "Welcome Back";
+                formSubtitle.innerText = "Please enter your details to sign in";
+                registerFields.classList.add('hidden');
+                submitBtn.innerText = "Sign In";
+                toggleText.innerText = "Don't have an account?";
+                toggleBtn.innerText = "Sign up";
+                
+                // Disable required for hidden fields
+                document.querySelectorAll('#register-only-fields input, #register-only-fields select').forEach(el => el.required = false);
+            } else {
+                formTitle.innerText = "Create Account";
+                formSubtitle.innerText = "Join us to get started with your journey";
+                registerFields.classList.remove('hidden');
+                submitBtn.innerText = "Create Account";
+                toggleText.innerText = "Already have an account?";
+                toggleBtn.innerText = "Log in";
+                
+                // Enable required for visible registration fields
+                document.querySelectorAll('#register-only-fields input, #register-only-fields select').forEach(el => el.required = true);
+            }
+            hideStatus();
+        });
+
+        const showStatus = (message, type) => {
+            statusMsg.innerText = message;
+            statusMsg.className = `mb-6 p-4 rounded-lg text-sm font-medium ${
+                type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+            }`;
+            statusMsg.classList.remove('hidden');
+        };
+
+        const hideStatus = () => {
+            statusMsg.classList.add('hidden');
+        };
+
+        const redirectByRole = (role) => {
+            const routes = {
+                patient: 'patient.html',
+                admin:   'admin.html',
+                doctor:  'doctor.html',
+            };
+            const destination = routes[role?.toLowerCase()] || 'patient.html';
+            window.location.href = destination;
+        };
+
+        // Form Submission Logic
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideStatus();
+
+            const endpoint = isLogin ? `${API_BASE}/login` : `${API_BASE}/register`;
+            
+            let payload = {
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value
+            };
+
+            if (!isLogin) {
+                payload = {
+                    ...payload,
+                    fullname: document.getElementById('fullname').value,
+                    dob: document.getElementById('dob').value,
+                    gender: document.getElementById('gender').value,
+                    emergencyContact: document.getElementById('emergencyContact').value,
+                    PhoneNumber: document.getElementById('PhoneNumber').value,
+                    location: document.getElementById('location').value,
+                    role: 'patient', // Default role for signup as requested
+                    status: 'active',
+                    profilePicture: null
+                };
+            }
+
+            // UI State: Loading
+            const originalBtnText = submitBtn.innerText;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<span class="loader"></span> Processing...`;
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    if (isLogin) {
+                        if (data.token) localStorage.setItem('token', data.token);
+                        
+                        // Accessing role from user object commonly returned by APIs
+                        const userRole = data.user?.role || data.role;
+                        
+                        showStatus("Login successful! Redirecting...", "success");
+
+                        setTimeout(() => {
+                            redirectByRole(userRole);
+                        }, 1000);
+                    } else {
+                        showStatus("Registration successful! You can now log in.", "success");
+                        // Delay and then switch to login view
+                        setTimeout(() => toggleBtn.click(), 2000);
+                        form.reset();
+                    }
+                } else {
+                    showStatus(data.message || data.error || "An error occurred during authentication.", "error");
+                }
+            } catch (error) {
+                showStatus("Unable to connect to the server (localhost:50001).", "error");
+                console.error("Auth Error:", error);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = originalBtnText;
+            }
+        });
+    </script>
+</body>
+</html>

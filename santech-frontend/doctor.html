@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Dashboard - HealthCare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #f9fafb; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .loader {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold text-blue-600">HealthCare</span>
+                    <span class="ml-4 text-gray-500 font-medium hidden sm:block">Doctor Portal</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="logout-btn" class="text-sm font-semibold text-gray-700 hover:text-red-600">Logout</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Tabs Header -->
+        <div class="border-b border-gray-200 mb-8">
+            <nav class="-mb-px flex space-x-8">
+                <button onclick="switchTab('appointments')" class="tab-link border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="appointments">
+                    Appointments
+                </button>
+                <button onclick="switchTab('availability')" class="tab-link border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="availability">
+                    My Availability
+                </button>
+                <button onclick="switchTab('notifications')" class="tab-link border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="notifications">
+                    Notifications
+                </button>
+            </nav>
+        </div>
+
+        <!-- Status Message -->
+        <div id="global-status" class="hidden mb-4 p-4 rounded-lg text-sm font-medium"></div>
+
+        <!-- Tab: Appointments -->
+        <div id="appointments" class="tab-content active">
+            <div class="bg-white shadow rounded-lg overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-bold text-gray-800">Appointment Management</h2>
+                    <button onclick="loadAppointments()" class="text-sm text-blue-600 hover:underline">Refresh List</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date/Time</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="appointment-list" class="bg-white divide-y divide-gray-200">
+                            <tr><td colspan="4" class="p-8 text-center text-gray-500 italic">Click refresh to load data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Availability -->
+        <div id="availability" class="tab-content">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="md:col-span-1 bg-white shadow rounded-lg p-6 h-fit">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Add New Slots</h3>
+                    <form id="availability-form" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Available Date</label>
+                            <input type="date" id="avail-date" required class="mt-1 block w-full rounded-md border-gray-300 border p-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Time Slots</label>
+                            <p class="text-xs text-gray-400 mb-1">Separate with commas (e.g. 09:00-10:00, 11:00-12:00)</p>
+                            <input type="text" id="avail-slots" placeholder="09:00-10:00, 14:00-15:00" required class="mt-1 block w-full rounded-md border-gray-300 border p-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <button type="submit" id="avail-submit-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Save Availability</button>
+                    </form>
+                </div>
+
+                <div class="md:col-span-2 bg-white shadow rounded-lg p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Current Availability</h3>
+                    <div id="availability-list" class="space-y-3">
+                        <p class="text-gray-500 italic">No availability slots loaded.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Notifications -->
+        <div id="notifications" class="tab-content">
+            <div class="bg-white shadow rounded-lg p-6 max-w-2xl mx-auto">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Inbox</h3>
+                <div id="notification-list" class="space-y-4">
+                    <p class="text-gray-500 italic">Checking for notifications...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:50001/api";
+        const token = localStorage.getItem('token');
+        
+        // Parsing the JWT to get User ID safely
+        const getUserId = () => {
+            if (!token) return null;
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                return JSON.parse(jsonPayload).id;
+            } catch (e) {
+                return localStorage.getItem('userId');
+            }
+        };
+
+        const doctorId = getUserId();
+
+        if (!token) {
+            window.location.href = 'index.html';
+        }
+
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
+        function showStatus(msg, isError = false) {
+            const el = document.getElementById('global-status');
+            el.innerText = msg;
+            el.className = `mb-4 p-4 rounded-lg text-sm font-medium ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+            el.classList.remove('hidden');
+            setTimeout(() => el.classList.add('hidden'), 5000);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-link').forEach(el => {
+                el.classList.remove('border-blue-500', 'text-blue-600');
+                el.classList.add('border-transparent', 'text-gray-500');
+            });
+
+            document.getElementById(tabId).classList.add('active');
+            const activeBtn = document.querySelector(`[data-tab="${tabId}"]`);
+            activeBtn.classList.remove('border-transparent', 'text-gray-500');
+            activeBtn.classList.add('border-blue-500', 'text-blue-600');
+
+            if (tabId === 'appointments') loadAppointments();
+            if (tabId === 'availability') loadAvailability();
+            if (tabId === 'notifications') loadNotifications();
+        }
+
+        async function loadAppointments() {
+            const list = document.getElementById('appointment-list');
+            list.innerHTML = '<tr><td colspan="4" class="p-4 text-center"><span class="loader"></span> Loading...</td></tr>';
+            try {
+                const res = await fetch(`${API_BASE}/appointments`, { headers });
+                if (!res.ok) throw new Error('Fetch failed');
+                const appointments = await res.json();
+                
+                list.innerHTML = appointments.length ? appointments.map(app => `
+                    <tr>
+                        <td class="px-6 py-4 text-sm text-gray-900 font-medium">${app.appointmentDate}<br><span class="text-gray-500">${app.appointmentTime}</span></td>
+                        <td class="px-6 py-4 text-sm text-gray-500">${app.reason || 'Regular Checkup'}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full ${
+                                app.status === 'scheduled' ? 'bg-green-100 text-green-800' : 
+                                app.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                            }">${app.status}</span>
+                        </td>
+                        <td class="px-6 py-4 text-right space-x-2">
+                            ${app.status === 'pending' ? `
+                                <button onclick="handleAppointment('${app.id}', 'approve')" class="bg-green-50 text-green-600 px-3 py-1 rounded hover:bg-green-100 text-xs font-bold">Approve</button>
+                                <button onclick="handleAppointment('${app.id}', 'cancel')" class="bg-red-50 text-red-600 px-3 py-1 rounded hover:bg-red-100 text-xs font-bold">Cancel</button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `).join('') : '<tr><td colspan="4" class="p-8 text-center text-gray-400">No appointments found.</td></tr>';
+            } catch (e) { 
+                list.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">Failed to connect to API.</td></tr>'; 
+            }
+        }
+
+        async function handleAppointment(id, action) {
+            try {
+                const res = await fetch(`${API_BASE}/appointments/${id}/${action}`, {
+                    method: 'PATCH',
+                    headers
+                });
+                if (res.ok) {
+                    showStatus(`Appointment ${action}d successfully`);
+                    loadAppointments();
+                } else {
+                    const err = await res.json();
+                    showStatus(err.error || "Action failed", true);
+                }
+            } catch (e) { showStatus("Network error", true); }
+        }
+
+        async function loadAvailability() {
+            const list = document.getElementById('availability-list');
+            list.innerHTML = '<p class="text-gray-500"><span class="loader"></span> Loading...</p>';
+            try {
+                const res = await fetch(`${API_BASE}/doctor-availability`, { headers });
+                if (!res.ok) throw new Error('Load failed');
+                const availability = await res.json();
+                
+                list.innerHTML = availability.length ? availability.map(item => {
+                    const slots = Array.isArray(item.availableTimeSlots) ? item.availableTimeSlots : JSON.parse(item.availableTimeSlots || '[]');
+                    return `
+                    <div class="flex justify-between items-center p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <div>
+                            <p class="font-bold text-gray-800">${new Date(item.availableDate).toLocaleDateString()}</p>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                ${slots.map(s => `<span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs">${s}</span>`).join('')}
+                            </div>
+                        </div>
+                        <button onclick="deleteAvail('${item.id}')" class="p-2 text-red-400 hover:text-red-600">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    </div>
+                `}).join('') : '<p class="text-gray-500 italic">No availability slots set yet.</p>';
+            } catch (e) { 
+                list.innerHTML = '<p class="text-red-500">Error loading availability. Ensure server is at localhost:50001</p>'; 
+            }
+        }
+
+        document.getElementById('availability-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('avail-submit-btn');
+            const originalText = btn.innerText;
+            
+            const date = document.getElementById('avail-date').value;
+            const slotsInput = document.getElementById('avail-slots').value;
+            const slotsArray = slotsInput.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            
+            if (!doctorId) {
+                showStatus("Error: User session expired. Please login again.", true);
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<span class="loader"></span> Saving...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/doctor-availability`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        doctorId: doctorId,
+                        availableDate: date,
+                        availableTimeSlots: slotsArray
+                    })
+                });
+                
+                const data = await res.json();
+                if (res.ok) {
+                    showStatus("Availability saved!");
+                    document.getElementById('availability-form').reset();
+                    loadAvailability();
+                } else {
+                    showStatus(data.error || "Failed to save availability", true);
+                }
+            } catch (e) { 
+                showStatus("Network error: Could not reach server", true); 
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        });
+
+        async function deleteAvail(id) {
+            if (!confirm("Remove this availability slot?")) return;
+            try {
+                const res = await fetch(`${API_BASE}/doctor-availability/${id}`, { method: 'DELETE', headers });
+                if (res.ok) {
+                    showStatus("Slot removed");
+                    loadAvailability();
+                }
+            } catch (e) { showStatus("Delete failed", true); }
+        }
+
+        async function loadNotifications() {
+            const list = document.getElementById('notification-list');
+            try {
+                const res = await fetch(`${API_BASE}/notifications`, { headers });
+                if (!res.ok) throw new Error();
+                const notifications = await res.json();
+                list.innerHTML = notifications.length ? notifications.map(n => `
+                    <div class="p-4 border-l-4 ${n.isRead ? 'border-gray-200 bg-white' : 'border-blue-500 bg-blue-50'} rounded shadow-sm">
+                        <div class="flex justify-between">
+                            <p class="text-sm ${n.isRead ? 'text-gray-600' : 'text-gray-900 font-semibold'}">${n.message}</p>
+                            <span class="text-[10px] text-gray-400">Just now</span>
+                        </div>
+                    </div>
+                `).join('') : '<p class="text-gray-500 text-center py-4">Your inbox is empty.</p>';
+            } catch (e) { list.innerHTML = '<p class="text-gray-400 text-center">Notification service unavailable.</p>'; }
+        }
+
+        window.onload = () => {
+            loadAppointments();
+        };
+
+        document.getElementById('logout-btn').onclick = () => {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        };
+    </script>
+</body>
+</html>
